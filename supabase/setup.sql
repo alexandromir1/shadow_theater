@@ -122,7 +122,7 @@ create or replace function public.reserve_seats(
 returns public.bookings
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_booking public.bookings;
@@ -165,8 +165,7 @@ begin
     end if;
   end loop;
 
-  v_code := 'MIA-' || upper(substr(encode(gen_random_bytes(3), 'hex'), 1, 4));
-
+  v_code := 'MIA-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 4));
   insert into public.bookings (show_id, booking_code, guest_name, guest_contact, status)
   values (p_show_id, v_code, trim(p_guest_name), nullif(trim(p_guest_contact), ''), 'reserved')
   returning * into v_booking;

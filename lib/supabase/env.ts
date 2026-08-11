@@ -1,7 +1,10 @@
 /** Resolve Supabase env — supports legacy JWT keys and new sb_publishable / sb_secret keys. */
 
 export function getSupabaseUrl(): string | undefined {
-  return process.env.NEXT_PUBLIC_SUPABASE_URL || undefined;
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (!raw) return undefined;
+  // Allow pasting .../rest/v1/ from the dashboard by mistake
+  return raw.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 }
 
 /** Client / anon key */

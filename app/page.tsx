@@ -1,16 +1,25 @@
 import { EntranceJourney } from "@/components/home/EntranceJourney";
-import { listPublishedShows, getShowStats } from "@/lib/db";
+import { listPublishedShows, getShowStats, isSupabaseConfigured } from "@/lib/db";
 import { MOCK_SHOWS } from "@/lib/mock/shows";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const onVercel = Boolean(process.env.VERCEL);
   let shows = MOCK_SHOWS;
+
+  if (onVercel && !isSupabaseConfigured()) {
+    console.error(
+      "[theater] Missing Supabase env on Vercel. Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY",
+    );
+  }
+
   try {
     const fromDb = await listPublishedShows();
     if (fromDb.length > 0) shows = fromDb;
-  } catch {
-    shows = MOCK_SHOWS;
+  } catch (err) {
+    console.error("[theater] Failed to load shows", err);
+    shows = onVercel ? [] : MOCK_SHOWS;
   }
 
   const posters = await Promise.all(

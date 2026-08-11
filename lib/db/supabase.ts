@@ -180,8 +180,25 @@ export async function reserveSeats(
     p_admin: Boolean(options?.admin),
   });
 
+  if (!error && data) {
+    const booking = mapBooking(data as Record<string, unknown>);
+    const hydrated = await getBookingById(booking.id);
+    if (!hydrated) {
+      return { ok: false, error: "invalid", message: "Не удалось забронировать." };
+    }
+    return { ok: true, booking: hydrated };
+  }
+
+  // Fallback if RPC is missing/broken (e.g. gen_random_bytes search_path)
   if (error) {
     const msg = error.message || "";
+    if (
+      msg.includes("gen_random_bytes") ||
+      msg.includes("does not exist") ||
+      msg.includes("42883")
+    ) {
+      return reserveSeatsDirect(input, options);
+    }
     if (msg.includes("23505") || msg.includes("already") || msg.includes("unavailable")) {
       return {
         ok: false,
@@ -196,11 +213,87 @@ export async function reserveSeats(
         message: "Спектакль не найден.",
       };
     }
+    console.error("[theater] reserve_seats RPC failed", error);
     return { ok: false, error: "invalid", message: "Не удалось забронировать." };
   }
 
-  const booking = mapBooking(data as Record<string, unknown>);
-  const hydrated = await getBookingById(booking.id);
+  return { ok: false, error: "invalid", message: "Не удалось забронировать." };
+}
+
+async function reserveSeatsDirect(
+  input: ReserveInput,
+  options?: { admin?: boolean },
+): Promise<ReserveResult> {
+  const supabase = db();
+  const name = input.guestName.trim();
+  if (!name || input.seatIds.length === 0) {
+    return { ok: false, error: "invalid", message: "Укажите имя и выберите места." };
+  }
+
+  const show = await getShowById(input.showId);
+  if (!show) {
+    return { ok: false, error: "not_found", message: "Спектакль не найден." };
+  }
+  if (show.status === "cancelled" || show.status === "archived") {
+    return { ok: false, error: "invalid", message: "Спектакль отменён или в архиве." };
+  }
+  if (!options?.admin && show.status !== "published") {
+    return { ok: false, error: "not_found", message: "Спектакль не найден." };
+  }
+
+  const seats = await getSeatsForShow(input.showId);
+  const selected = seats.filter((s) => input.seatIds.includes(s.id));
+  if (selected.length !== input.seatIds.length) {
+    return { ok: false, error: "invalid", message: "Некоторые места не найдены." };
+  }
+  if (selected.some((s) => s.availability !== "available")) {
+    return {
+      ok: false,
+      error: "conflict",
+      message: "Похоже, это место только что забронировали.",
+    };
+  }
+
+  const code = `MIA-${randomBytes(2).toString("hex").toUpperCase()}`;
+  const { data: bookingRow, error: bookingError } = await supabase
+    .from("bookings")
+    .insert({
+      show_id: input.showId,
+      booking_code: code,
+      guest_name: name,
+      guest_contact: input.guestContact?.trim() || null,
+      status: "reserved",
+    })
+    .select("*")
+    .single();
+
+  if (bookingError || !bookingRow) {
+    console.error("[theater] direct booking insert failed", bookingError);
+    return { ok: false, error: "invalid", message: "Не удалось забронировать." };
+  }
+
+  const { error: linkError } = await supabase.from("booking_seats").insert(
+    input.seatIds.map((seat_id) => ({
+      booking_id: bookingRow.id,
+      seat_id,
+    })),
+  );
+
+  if (linkError) {
+    await supabase.from("bookings").update({ status: "cancelled" }).eq("id", bookingRow.id);
+    const msg = linkError.message || "";
+    if (msg.includes("already") || msg.includes("23505") || msg.includes("seat")) {
+      return {
+        ok: false,
+        error: "conflict",
+        message: "Похоже, это место только что забронировали.",
+      };
+    }
+    console.error("[theater] booking_seats insert failed", linkError);
+    return { ok: false, error: "invalid", message: "Не удалось забронировать." };
+  }
+
+  const hydrated = await getBookingById(String(bookingRow.id));
   if (!hydrated) {
     return { ok: false, error: "invalid", message: "Не удалось забронировать." };
   }
