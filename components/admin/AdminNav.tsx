@@ -15,6 +15,9 @@ export function AdminNav() {
       <Link href="/admin/shows" className={link}>
         Спектакли
       </Link>
+      <Link href="/admin/check-in" className={link}>
+        Сканер
+      </Link>
       <Link
         href="/admin/shows/new"
         className="rounded-md bg-stone-900 px-3 py-1.5 text-white hover:bg-stone-800"

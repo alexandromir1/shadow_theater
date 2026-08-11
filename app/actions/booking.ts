@@ -8,6 +8,7 @@ import {
   cancelBooking,
   checkInBooking,
   createShow,
+  getBookingByCode,
   getBookingById,
   getShowById,
   isSupabaseConfigured,
@@ -102,7 +103,39 @@ export async function checkInAction(bookingId: string) {
     track("check_in_completed", { bookingId, showId: booking.show_id });
   }
   revalidatePath("/admin");
+  revalidatePath("/admin/check-in");
   return { ok: Boolean(booking), booking };
+}
+
+export async function lookupBookingByCodeAction(code: string) {
+  await requireAdmin();
+  const booking = await getBookingByCode(code);
+  if (!booking) {
+    return { ok: false as const, message: "Билет не найден" };
+  }
+  return { ok: true as const, booking };
+}
+
+export async function checkInByCodeAction(code: string) {
+  await requireAdmin();
+  const booking = await getBookingByCode(code);
+  if (!booking) {
+    return { ok: false as const, message: "Билет не найден" };
+  }
+  if (booking.status === "cancelled") {
+    return { ok: false as const, message: "Бронь отменена", booking };
+  }
+  if (booking.status === "checked_in") {
+    return { ok: true as const, already: true as const, booking };
+  }
+  const updated = await checkInBooking(booking.id);
+  if (updated) {
+    track("check_in_completed", { bookingId: booking.id, showId: booking.show_id });
+  }
+  revalidatePath("/admin");
+  revalidatePath("/admin/check-in");
+  const fresh = await getBookingByCode(code);
+  return { ok: Boolean(fresh), already: false as const, booking: fresh ?? booking };
 }
 
 export async function createShowAction(input: CreateShowInput) {
