@@ -1,25 +1,32 @@
 import { EntranceJourney } from "@/components/home/EntranceJourney";
 import { listPublishedShows, getShowStats, isSupabaseConfigured } from "@/lib/db";
 import { MOCK_SHOWS } from "@/lib/mock/shows";
+import type { Show } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 15;
 
 export default async function HomePage() {
   const onVercel = Boolean(process.env.VERCEL);
-  let shows = MOCK_SHOWS;
+  let shows: Show[] = [];
+  let loadError: string | null = null;
 
-  if (onVercel && !isSupabaseConfigured()) {
-    console.error(
-      "[theater] Missing Supabase env on Vercel. Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY",
-    );
-  }
-
-  try {
-    const fromDb = await listPublishedShows();
-    if (fromDb.length > 0) shows = fromDb;
-  } catch (err) {
-    console.error("[theater] Failed to load shows", err);
-    shows = onVercel ? [] : MOCK_SHOWS;
+  if (!isSupabaseConfigured()) {
+    if (onVercel) {
+      loadError =
+        "Не заданы переменные Supabase на Vercel (URL, publishable, secret).";
+      console.error("[theater]", loadError);
+    } else {
+      shows = MOCK_SHOWS;
+    }
+  } else {
+    try {
+      shows = await listPublishedShows();
+    } catch (err) {
+      loadError = err instanceof Error ? err.message : "Ошибка загрузки";
+      console.error("[theater] Failed to load shows", err);
+      if (!onVercel) shows = MOCK_SHOWS;
+    }
   }
 
   const posters = await Promise.all(
@@ -33,7 +40,7 @@ export default async function HomePage() {
       } catch {
         return {
           show,
-          freeSeats: show.row_count * show.seats_per_row,
+          freeSeats: Math.max(0, show.capacity || show.row_count * show.seats_per_row),
         };
       }
     }),
@@ -41,7 +48,7 @@ export default async function HomePage() {
 
   return (
     <main>
-      <EntranceJourney posters={posters} />
+      <EntranceJourney posters={posters} emptyMessage={loadError} />
     </main>
   );
 }

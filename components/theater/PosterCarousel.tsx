@@ -7,14 +7,33 @@ import { StagePoster, type StagePosterItem } from "@/components/theater/StagePos
 type PosterCarouselProps = {
   items: StagePosterItem[];
   visible?: boolean;
+  emptyMessage?: string | null;
 };
 
-export function PosterCarousel({ items, visible = true }: PosterCarouselProps) {
+export function PosterCarousel({
+  items,
+  visible = true,
+  emptyMessage,
+}: PosterCarouselProps) {
   const reduced = useFramerReduced();
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(0);
 
-  if (!items.length) return null;
+  if (!items.length) {
+    return (
+      <div
+        className={`flex h-full w-full flex-col items-center justify-center px-6 text-center transition-opacity duration-500 ${
+          visible ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      >
+        <p className="font-display text-xl text-[var(--cream)]">Афиша пока пуста</p>
+        <p className="mt-3 max-w-md text-sm text-[var(--cream-muted)]">
+          {emptyMessage ||
+            "Опубликуйте спектакль в /admin — и он появится здесь."}
+        </p>
+      </div>
+    );
+  }
 
   const go = (dir: number) => {
     setDirection(dir);

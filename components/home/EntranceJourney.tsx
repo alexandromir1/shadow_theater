@@ -19,6 +19,7 @@ import type { StagePosterItem } from "@/components/theater/StagePoster";
 
 type EntranceJourneyProps = {
   posters: StagePosterItem[];
+  emptyMessage?: string | null;
 };
 
 type PhotoBox = { left: number; top: number; width: number; height: number };
@@ -26,7 +27,7 @@ type PhotoBox = { left: number; top: number; width: number; height: number };
 /**
  * Ширма → фото без обрезки, театр той же ширины от середины до низа → зум → афиши.
  */
-export function EntranceJourney({ posters }: EntranceJourneyProps) {
+export function EntranceJourney({ posters, emptyMessage }: EntranceJourneyProps) {
   const reduced = useFramerReduced();
   const containerRef = useRef<HTMLDivElement>(null);
   const [inside, setInside] = useState(false);
@@ -120,7 +121,7 @@ export function EntranceJourney({ posters }: EntranceJourneyProps) {
   }, [reduced]);
 
   if (reduced) {
-    return <ReducedJourney posters={posters} onRestart={restart} />;
+    return <ReducedJourney posters={posters} emptyMessage={emptyMessage} onRestart={restart} />;
   }
 
   return (
@@ -189,7 +190,11 @@ export function EntranceJourney({ posters }: EntranceJourneyProps) {
                 className="h-full w-full"
                 style={{ pointerEvents: inside ? "auto" : "none" }}
               >
-                <PosterCarousel items={posters} visible={inside} />
+                <PosterCarousel
+                  items={posters}
+                  visible={inside}
+                  emptyMessage={emptyMessage}
+                />
               </div>
             </motion.div>
           </TheaterWorld>
@@ -222,9 +227,11 @@ export function EntranceJourney({ posters }: EntranceJourneyProps) {
 
 function ReducedJourney({
   posters,
+  emptyMessage,
   onRestart,
 }: {
   posters: StagePosterItem[];
+  emptyMessage?: string | null;
   onRestart: () => void;
 }) {
   return (
@@ -261,7 +268,7 @@ function ReducedJourney({
                 Сначала
               </button>
             </div>
-            <PosterCarousel items={posters} visible />
+            <PosterCarousel items={posters} visible emptyMessage={emptyMessage} />
           </div>
         </TheaterWorld>
       </section>

@@ -6,6 +6,7 @@ import {
   getSupabaseSecretKey,
   getSupabaseUrl,
 } from "@/lib/supabase/env";
+import { supabaseFetch } from "@/lib/supabase/fetch";
 
 export async function createClient() {
   const url = getSupabaseUrl();
@@ -31,6 +32,7 @@ export async function createClient() {
         }
       },
     },
+    global: { fetch: supabaseFetch },
   });
 }
 
@@ -42,5 +44,11 @@ export function createServiceClient() {
   }
   return createSupabaseClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: supabaseFetch,
+      headers: {
+        apikey: key,
+      },
+    },
   });
 }

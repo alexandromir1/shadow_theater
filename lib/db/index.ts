@@ -6,7 +6,15 @@ import type {
   ReserveResult,
   UpdateShowInput,
 } from "@/lib/db/local";
-import type { Booking, BookingStatus, BookingWithSeats, Seat, SeatWithAvailability, Show, ShowStatus } from "@/lib/types";
+import type {
+  Booking,
+  BookingStatus,
+  BookingWithSeats,
+  Seat,
+  SeatWithAvailability,
+  Show,
+  ShowStatus,
+} from "@/lib/types";
 
 export type { CreateShowInput, ReserveInput, ReserveResult, UpdateShowInput };
 
@@ -15,11 +23,7 @@ export function isSupabaseConfigured(): boolean {
 }
 
 function api() {
-  if (process.env.VERCEL && !isSupabaseConfigured()) {
-    throw new Error(
-      "На Vercel нужны NEXT_PUBLIC_SUPABASE_URL, publishable/anon key и secret/service_role key. См. README.",
-    );
-  }
+  // Prefer Supabase whenever env is present. Never throw here — callers handle errors.
   return isSupabaseConfigured() ? remote : local;
 }
 

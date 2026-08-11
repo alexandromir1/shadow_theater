@@ -8,6 +8,7 @@ import { track } from "@/lib/analytics";
 import { isAdminAuthenticated } from "@/lib/auth/admin";
 import { formatShowDateTime } from "@/lib/mock/shows";
 import { getSeatsForShow, getShowBySlug } from "@/lib/db";
+import type { SeatWithAvailability } from "@/lib/types";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -28,10 +29,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 15;
 
 export default async function ShowPage({ params }: Props) {
   const { slug } = await params;
-  const show = await getShowBySlug(slug);
+
+  let show;
+  try {
+    show = await getShowBySlug(slug);
+  } catch (err) {
+    console.error("[theater] getShowBySlug failed", err);
+    notFound();
+  }
   if (!show) notFound();
 
   if (show.status === "draft" || show.status === "archived") {
@@ -44,7 +53,13 @@ export default async function ShowPage({ params }: Props) {
   }
 
   track("show_viewed", { showId: show.id, showTitle: show.title });
-  const seats = await getSeatsForShow(show.id);
+
+  let seats: SeatWithAvailability[] = [];
+  try {
+    seats = await getSeatsForShow(show.id);
+  } catch (err) {
+    console.error("[theater] getSeatsForShow failed", err);
+  }
   const cancelled = show.status === "cancelled";
   const draftPreview = show.status === "draft";
 
@@ -93,7 +108,13 @@ export default async function ShowPage({ params }: Props) {
                   Зал
                 </h2>
               </Reveal>
-              <BookingFlow show={show} seats={seats} />
+              {seats.length > 0 ? (
+                <BookingFlow show={show} seats={seats} />
+              ) : (
+                <p className="text-center text-[var(--cream-muted)]">
+                  Схема зала временно недоступна. Попробуйте обновить страницу.
+                </p>
+              )}
             </div>
           </section>
         )}
