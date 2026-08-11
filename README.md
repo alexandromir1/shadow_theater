@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Театр теней Мии
 
-## Getting Started
+Цифровой дом маленького детского театра теней: афиша, выбор мест и бронирование без оплаты.
 
-First, run the development server:
+## Локально
 
 ```bash
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Без ключей Supabase работает demo-режим (`.data/store.json`) — только для разработки.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Админка: `/admin` · пароль из `ADMIN_PASSWORD` (по умолчанию в примере).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Деплой на Vercel
 
-## Learn More
+### 1. Supabase
 
-To learn more about Next.js, take a look at the following resources:
+1. Создайте проект на [supabase.com](https://supabase.com)
+2. **SQL Editor** → New query → вставьте весь файл [`supabase/setup.sql`](supabase/setup.sql) → **Run**
+3. Project Settings → API / API Keys скопируйте:
+   - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
+   - Publishable key (`sb_publishable_…`) → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - Secret key (`sb_secret_…`) → `SUPABASE_SECRET_KEY`  
+     (никогда не коммитьте secret в git и не светите в клиентском коде)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   Legacy-ключи `anon` / `service_role` тоже поддерживаются.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Bucket `show-assets` создаётся скриптом автоматически.
 
-## Deploy on Vercel
+### 2. Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Залейте репозиторий на GitHub
+2. [vercel.com/new](https://vercel.com/new) → Import проекта
+3. Framework Preset: **Next.js** (определится сам)
+4. Environment Variables:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Name | Value |
+|------|--------|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://….supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_…` |
+| `SUPABASE_SECRET_KEY` | `sb_secret_…` |
+| `ADMIN_PASSWORD` | свой надёжный пароль |
+
+5. Deploy
+
+### 3. Проверка после деплоя
+
+1. Откройте сайт → афиша (если seed прошёл — «Лесная история»)
+2. `/admin/login` → пароль из `ADMIN_PASSWORD`
+3. Создайте спектакль, загрузите афишу, опубликуйте
+4. «Посмотреть как гость» → забронируйте места
+5. В админке проверьте гостя и отмену брони
+
+### Важно
+
+- Без Supabase на Vercel бронирования **не сохранятся** (файловая система эфемерна).
+- `SUPABASE_SECRET_KEY` нужен серверу для админки и атомарных броней.
+- После смены env в Vercel сделайте Redeploy.
+
+## Стек
+
+Next.js · Tailwind · Motion · Supabase (Postgres + Storage)
+
+## Сценарии
+
+- Гость: главная → афиша → спектакль → места → имя → подтверждение
+- Админ: вход → спектакли → зал / гости / ручная бронь
