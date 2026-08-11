@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import {
+  assertHeaderSafe,
   getSupabasePublishableKey,
   getSupabaseSecretKey,
   getSupabaseUrl,
@@ -14,6 +15,7 @@ export async function createClient() {
   if (!url || !key) {
     throw new Error("Supabase is not configured");
   }
+  assertHeaderSafe("publishable key", key);
 
   const cookieStore = await cookies();
 
@@ -42,6 +44,8 @@ export function createServiceClient() {
   if (!url || !key) {
     throw new Error("Supabase service role is not configured");
   }
+  assertHeaderSafe("secret key", key);
+
   return createSupabaseClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: {
